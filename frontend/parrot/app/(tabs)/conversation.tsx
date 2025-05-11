@@ -203,13 +203,9 @@ export default function Conversation() {
       });
       console.log('✅ Audio mode configured successfully');
 
-      // Create a new recording instance
+      // Create and prepare recording
       console.log('🎥 Creating recording instance...');
-      const newRecording = new Audio.Recording();
-      
-      // Prepare the recorder
-      console.log('🎥 Preparing recorder...');
-      await newRecording.prepareToRecordAsync({
+      const { recording: newRecording } = await Audio.Recording.createAsync({
         ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
         android: {
           ...Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
@@ -220,22 +216,17 @@ export default function Conversation() {
           meteringEnabled: true,
         } as Audio.RecordingOptionsIOS,
       });
-
-      // Start recording
-      console.log('🎥 Starting recording...');
-      await newRecording.startAsync();
       
       setRecording(newRecording);
       setIsRecording(true);
       console.log('✅ Recording started successfully');
 
+      // Wait a short moment for recording to initialize
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       // Start monitoring audio levels
       volumeUpdateInterval.current = setInterval(async () => {
         try {
-          if (!newRecording) {
-            console.log('❌ No recording instance available');
-            return;
-          }
           const status = await newRecording.getStatusAsync();
           if (status.isRecording && status.metering !== undefined) {
             // Convert metering to a 0-1 scale
