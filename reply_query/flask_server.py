@@ -31,17 +31,16 @@ def bedrock_query() -> dict:
         embedding = text_embedding.embed_text(string_query) # transform for embed
         matches = database_interactor.similarity_search(embedding)
         client = boto3.client('bedrock-runtime', region_name='us-west-2')  
-        query_text = (
-            "Given the information of the initial query question that was asked and also the matching information "
-            "that was found with the text and that timeframe, provide the user with an answer to their question or just reply to them as their assistant if they didn't ask a question,"
-            "given the matches of information to their question"
-            "Also note that you are parrot.ai a tool that helps users remember information that was recorded."
-        )
+        query_text =  """
+            You are Parrot.ai, a tool that helps users remember recorded information.
+            Provide the user with an answer to their question or respond as their assistant if no question was asked.
+            Don't go onto a ramble be direct whether that's responding to their question.
+            """
 
         formatted_matches = ' | '.join(' '.join(str(item) if not isinstance(item, datetime) else item.strftime('%Y-%m-%d %H:%M:%S') for item in tup) for tup in matches)
 
         
-        context = "Initial Query: " + string_query + "| Matches: " + formatted_matches + "| Context: " + query_text
+        context = "Question: " + string_query + "| Matches: " + formatted_matches + "| Context: " + query_text
         
         payload = {
             "modelId": "anthropic.claude-3-5-haiku-20241022-v1:0",
