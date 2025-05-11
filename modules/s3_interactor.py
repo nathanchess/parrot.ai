@@ -37,7 +37,7 @@ def get_bucket_filenames(file_extension = ".json", bucket_name = BUCKET_NAME) ->
         if 'Contents' in response:
             for obj in response['Contents']:
                 key = obj['Key']
-                if "/" not in key and key.endswith(file_extension):
+                if "/" not in key and key.endswith(file_extension) and key != ".write_access_check_file.temp":
                     filenames.append(key)
         return filenames
 
@@ -66,7 +66,7 @@ def read_pop_file(filename: str) -> str:
 def get_transcript_from_file_contents(json_data: str) -> str:
     """returns the transcript from file contents"""
     try:
-        transcript = json_data["transcript"]
+        transcript = json_data["results"]["transcripts"][0]["transcript"]
         return transcript
     except:
         print("error finding transcript in file")

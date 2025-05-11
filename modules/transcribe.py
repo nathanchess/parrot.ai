@@ -26,6 +26,6 @@ def instruct_transcribe_audio(filename: str, output_filename: str) -> str:
         MediaFormat='wav',
         LanguageCode='en-US',
         OutputBucketName=OUTPUT_BUCKET, 
-        OutputKey=f"{output_filename}.json"
+        OutputKey=f"{output_filename[-4]}.json"
     )
 
