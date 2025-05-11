@@ -31,7 +31,7 @@ class S3Handler:
 
         try:
             logger.info(f'📤 Uploading file {filename} to S3 bucket {self.bucket_name}')
-            s3_key = f'audio/{filename}'
+            s3_key = f'{filename}'
             
             self.s3_client.upload_fileobj(
                 file_obj,

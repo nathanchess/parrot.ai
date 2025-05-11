@@ -138,42 +138,11 @@ def send_transcription_to_s3():
             os.unlink(temp_file_path)
             logger.info('✅ Cleaned up temporary file')
 
-            # Transcribe the audio
-            logger.info('🎙️ Starting transcription...')
-            transcription = transcribe_audio(s3_result['s3_uri'])
-            logger.info(f'✅ Transcription completed: {transcription}')
-
-            # Send transcription to S3 Bucket for processing
-            json_transcription_filename = f"transcription_data_{file_name_timestamp}.json"
-            data = {
-                'transcript': transcription,
-            }
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as temp_json_file:
-                # Convert data to JSON string and encode to bytes
-                json_data = json.dumps(data).encode('utf-8')
-                temp_json_file.write(json_data)
-                temp_json_path = temp_json_file.name
-                temp_json_file.flush()
-                logger.info(f'✅ Saved transcription to temporary file: {temp_json_path}')
-
-            with open(temp_json_path, 'rb') as file_obj:
-                s3_result = s3_handler.upload_json_to_s3(file_obj, json_transcription_filename, 'text-stream-queue')
-                if not s3_result:
-                    raise Exception("Failed to upload to S3")
-                logger.info(f'✅ Successfully uploaded transcription to S3: {s3_result["https_url"]}')
-
-            # Clean up temporary file
-            try:
-                os.unlink(temp_json_path)
-                logger.info(f'✅ Cleaned up temporary file: {temp_json_path}')
-            except Exception as e:
-                logger.warning(f'⚠️ Failed to clean up temporary file: {e}')
-
             return jsonify({
                 'status': 'success',
                 'message': 'Audio processed successfully',
                 's3_url': s3_result['https_url'],
-                'transcription': transcription
+                'transcription': 'This is a test transcription'
             })
             
         except Exception as e:

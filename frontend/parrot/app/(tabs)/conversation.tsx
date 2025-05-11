@@ -424,7 +424,7 @@ export default function Conversation() {
             
             // Trigger LLM response
             console.log('🦜 Triggering parrot response...');
-            simulateParrotResponse();
+            await simulateParrotResponse(data.transcription);
           } else {
             console.error('❌ No transcription in backend response');
           }
@@ -455,7 +455,7 @@ export default function Conversation() {
       setMessages((prev) => [...prev, newMessage]);
       setInputText("");
       console.log('✅ Message sent, triggering parrot response...');
-      simulateParrotResponse();
+      simulateParrotResponse(inputText);
     }
   };
 
@@ -467,32 +467,39 @@ export default function Conversation() {
     parrotBounceAnim.setValue(0);
   };
 
-  const simulateParrotResponse = () => {
+  const simulateParrotResponse = async (prompt: string) => {
     console.log('🦜 Starting parrot response simulation...');
     setIsParrotSpeaking(true);
     parrotAnimationRef.current?.play();
     
-    setTimeout(() => {
-      console.log('📝 Adding parrot response message...');
-      const response: Message = {
+    try {
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+      
+      const data = await response.json();
+      const message = data.response || "I'm analyzing your conversation...";
+
+      const responseMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I'm analyzing your conversation and will provide insights based on your recorded interactions.",
+        text: message,
         sender: 'assistant',
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, response]);
-      setInputText("");
-      console.log('✅ Parrot response added to messages');
+      setMessages((prev) => [...prev, responseMessage]);
       
-      // Stop animations and reset state after response
       setTimeout(() => {
-        console.log('🦜 Stopping parrot animations...');
         setIsParrotSpeaking(false);
         parrotAnimationRef.current?.pause();
-        parrotScaleAnim.setValue(1);
-        parrotBounceAnim.setValue(0);
-      }, 1000); // Wait 1 second after response to stop animations
-    }, 2000);
+      }, 1000);
+    } catch (error) {
+      console.error('❌ Error getting response:', error);
+      setIsParrotSpeaking(false);
+    }
   };
 
   // Clean up interval on component unmount
