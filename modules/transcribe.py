@@ -14,9 +14,10 @@ def instruct_transcribe_audio(filename) -> str:
     then thrown transcript into transcript processing bucket"""
     transcribe_client = boto3.client('transcribe', region_name='us-west-2')
     
+    print("transcribing", filename)
     s3_uri = f"s3://{AUDIO_BUCKET_NAME}/{filename}"
     transcribe_client.start_transcription_job(
-        TranscriptionJobName='',
+        TranscriptionJobName="transcribe",
         Media={'MediaFileUri': s3_uri},
         MediaFormat='wav',
         LanguageCode='en-US',

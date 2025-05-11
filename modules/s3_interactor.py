@@ -37,7 +37,7 @@ def get_bucket_filenames(file_extension = ".json", bucket_name = BUCKET_NAME) ->
         if 'Contents' in response:
             for obj in response['Contents']:
                 key = obj['Key']
-                if not key.endswith("/") and key.endswith(file_extension):
+                if "/" not in key and key.endswith(file_extension):
                     filenames.append(key)
         return filenames
 

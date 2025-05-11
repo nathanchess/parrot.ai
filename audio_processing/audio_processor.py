@@ -17,7 +17,7 @@ while True:
         print("no files, waiting")
         time.sleep(5)
     
-    for filename in s3.get_bucket_filenames(bucket_name=AUDIO_BUCKET_NAME):
+    for filename in s3.get_bucket_filenames(file_extension='.wav', bucket_name=AUDIO_BUCKET_NAME):
         archive_filename = f"archive/{filename}"
         s3.move_s3_file(filename, archive_filename, AUDIO_BUCKET_NAME)
         transcribe.instruct_transcribe_audio(archive_filename)
