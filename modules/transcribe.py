@@ -1,8 +1,8 @@
 import boto3
 from dotenv import load_dotenv
+from datetime import datetime
 
 import os
-import sys
 
 load_dotenv()
 AUDIO_BUCKET_NAME = os.getenv("AUDIO_BUCKET")
@@ -15,9 +15,13 @@ def instruct_transcribe_audio(filename: str, output_filename: str) -> str:
     transcribe_client = boto3.client('transcribe', region_name='us-west-2')
     
     print("transcribing", filename)
+
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    transcription_job_name = f"transcribe_{current_time}"
+
     s3_uri = f"s3://{AUDIO_BUCKET_NAME}/{filename}"
     transcribe_client.start_transcription_job(
-        TranscriptionJobName="transcribe",
+        TranscriptionJobName=transcription_job_name,
         Media={'MediaFileUri': s3_uri},
         MediaFormat='wav',
         LanguageCode='en-US',

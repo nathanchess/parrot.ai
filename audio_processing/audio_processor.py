@@ -20,7 +20,7 @@ while True:
     for filename in s3.get_bucket_filenames(file_extension='.wav', bucket_name=AUDIO_BUCKET_NAME):
         archive_filename = f"archive/{filename}"
         s3.move_s3_file(filename, archive_filename, AUDIO_BUCKET_NAME)
-        transcribe.instruct_transcrisbe_audio(filename = archive_filename, output_filename = filename)
+        transcribe.instruct_transcribe_audio(filename = archive_filename, output_filename = filename)
 
 
         
