@@ -21,13 +21,13 @@ def _process_file_contents(file_contents: dict) -> None:
     db.batch_upload_embeddings(upload_contents)
 
 
-#test bd interactor search my timestamp
-from datetime import datetime, timedelta
-for row in db.timestamp_search(datetime.now() - timedelta(hours=2), 2, 2):
-    print(row)
+# #test bd interactor search my timestamp
+# from datetime import datetime, timedelta
+# for row in db.timestamp_search(datetime.now() - timedelta(hours=2), 2, 2):
+#     print(row)
 
 while True:
-    if not s3.bucket_empty():
+    if s3.bucket_empty():
         print("no files, waiting")
         time.sleep(5)
     
