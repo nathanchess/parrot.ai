@@ -9,7 +9,7 @@ AUDIO_BUCKET_NAME = os.getenv("AUDIO_BUCKET")
 OUTPUT_BUCKET = os.getenv("S3_BUCKET_NAME")
 
 #function to convert .wav files in s3 into transcript json object
-def instruct_transcribe_audio(filename) -> str:
+def instruct_transcribe_audio(filename: str, output_filename: str) -> str:
     """sends instruction to transcribe audiofile 
     then thrown transcript into transcript processing bucket"""
     transcribe_client = boto3.client('transcribe', region_name='us-west-2')
@@ -22,6 +22,6 @@ def instruct_transcribe_audio(filename) -> str:
         MediaFormat='wav',
         LanguageCode='en-US',
         OutputBucketName=OUTPUT_BUCKET, 
-        OutputKey=f"{filename}.json"
+        OutputKey=f"{output_filename}.json"
     )
 
