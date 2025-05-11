@@ -35,6 +35,7 @@ def bedrock_query() -> dict:
             You are Parrot.ai, a tool that helps users remember recorded information.
             Provide the user with an answer to their question or respond as their assistant if no question was asked.
             Don't go onto a ramble be direct whether that's responding to their question.
+            Don't mention anything about previous transcriptions or data and don't bring up anything irrelevant.
             """
 
         formatted_matches = ' | '.join(' '.join(str(item) if not isinstance(item, datetime) else item.strftime('%Y-%m-%d %H:%M:%S') for item in tup) for tup in matches)
