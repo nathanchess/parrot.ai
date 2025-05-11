@@ -6,6 +6,7 @@ import logging
 import tempfile
 import os
 from dotenv import load_dotenv
+import json
 
 # Load environment variables
 load_dotenv()
@@ -91,6 +92,102 @@ def ingest_audio():
     except Exception as e:
         logger.error(f'❌ Error processing request: {str(e)}')
         return jsonify({'error': str(e)}), 500
+
+@app.route('/send-transcription-to-s3', methods=['POST'])
+def send_transcription_to_s3():
+
+    try:
+        logger.info('📥 Received audio ingestion request')
+        
+        # Get the audio data from the request
+        data = request.json
+        if not data or 'audio' not in data:
+            logger.error('❌ No audio data provided in request')
+            return jsonify({'error': 'No audio data provided'}), 400
+        
+        audio_data = data['audio']
+        logger.info(f'✅ Audio data received successfully (length: {len(audio_data)} characters)')
+
+        # Decode base64 audio data
+        try:
+            audio_bytes = base64.b64decode(audio_data)
+            logger.info('✅ Successfully decoded base64 audio data')
+        except Exception as e:
+            logger.error(f'❌ Error decoding base64 audio data: {str(e)}')
+            return jsonify({'error': 'Invalid audio data format'}), 400
+
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            temp_file.write(audio_bytes)
+            temp_file_path = temp_file.name
+            logger.info(f'✅ Saved audio to temporary file: {temp_file_path}')
+
+        try:
+            # Upload to S3
+            file_name_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"microphone_prompt_audio_{file_name_timestamp}.wav"
+            
+            # Open the file in binary read mode
+            with open(temp_file_path, 'rb') as file_obj:
+                s3_result = s3_handler.upload_audio_to_s3(file_obj, filename)
+                if not s3_result:
+                    raise Exception("Failed to upload to S3")
+                logger.info(f'✅ Successfully uploaded audio to S3: {s3_result["https_url"]}')
+            
+            # Clean up temporary file
+            os.unlink(temp_file_path)
+            logger.info('✅ Cleaned up temporary file')
+
+            # Transcribe the audio
+            logger.info('🎙️ Starting transcription...')
+            transcription = transcribe_audio(s3_result['s3_uri'])
+            logger.info(f'✅ Transcription completed: {transcription}')
+
+            # Send transcription to S3 Bucket for processing
+            json_transcription_filename = f"transcription_data_{file_name_timestamp}.json"
+            data = {
+                'transcript': transcription,
+            }
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as temp_json_file:
+                # Convert data to JSON string and encode to bytes
+                json_data = json.dumps(data).encode('utf-8')
+                temp_json_file.write(json_data)
+                temp_json_path = temp_json_file.name
+                temp_json_file.flush()
+                logger.info(f'✅ Saved transcription to temporary file: {temp_json_path}')
+
+            with open(temp_json_path, 'rb') as file_obj:
+                s3_result = s3_handler.upload_json_to_s3(file_obj, json_transcription_filename, 'text-stream-queue')
+                if not s3_result:
+                    raise Exception("Failed to upload to S3")
+                logger.info(f'✅ Successfully uploaded transcription to S3: {s3_result["https_url"]}')
+
+            # Clean up temporary file
+            try:
+                os.unlink(temp_json_path)
+                logger.info(f'✅ Cleaned up temporary file: {temp_json_path}')
+            except Exception as e:
+                logger.warning(f'⚠️ Failed to clean up temporary file: {e}')
+
+            return jsonify({
+                'status': 'success',
+                'message': 'Audio processed successfully',
+                's3_url': s3_result['https_url'],
+                'transcription': transcription
+            })
+            
+        except Exception as e:
+            logger.error(f'❌ Error processing audio: {str(e)}')
+            # Clean up temporary file in case of error
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            return jsonify({'error': 'Failed to process audio'}), 500
+        
+    except Exception as e:
+        logger.error(f'❌ Error processing request: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+
+        
 
 if __name__ == '__main__':
     logger.info('🚀 Starting Flask server...')

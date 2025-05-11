@@ -1,4 +1,4 @@
-import { useBackgroundRecording } from '../../context/BackgroundRecordingContext';
+import { useBackgroundRecording } from '../context/BackgroundRecordingContext';
 
 export default function Onboarding() {
   const { startBackgroundRecording } = useBackgroundRecording();

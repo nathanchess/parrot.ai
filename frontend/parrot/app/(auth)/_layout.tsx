@@ -11,9 +11,24 @@ export default function AuthLayout() {
           animation: "slide_from_right",
         }}
       >
-        <Stack.Screen name="login" />
-        <Stack.Screen name="signup" />
-        <Stack.Screen name="onboarding" />
+        <Stack.Screen 
+          name="login"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen 
+          name="signup"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen 
+          name="onboarding"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
     </View>
   );

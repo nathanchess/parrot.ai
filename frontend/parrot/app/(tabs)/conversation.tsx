@@ -19,13 +19,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import LottieView from "lottie-react-native";
 import { Audio } from 'expo-av';
+import { useBackgroundRecording } from '../context/BackgroundRecordingContext';
 
 const { width } = Dimensions.get("window");
 
 // Add backend configuration
-const BACKEND_URL = 'http://172.20.10.2:5000'; // This won't work on mobile
-// Replace with your computer's actual local IP address, for example:
-// const BACKEND_URL = 'http://192.168.1.100:5000';
+const BACKEND_URL = 'http://172.20.10.2:5000';
 
 type Message = {
   id: string;
@@ -66,13 +65,14 @@ const TypewriterText = ({ text, onComplete }: { text: string; onComplete?: () =>
 };
 
 export default function Conversation() {
+  const { stopBackgroundRecording, startBackgroundRecording, isBackgroundRecording } = useBackgroundRecording();
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isParrotSpeaking, setIsParrotSpeaking] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const [isParrotSpeaking, setIsParrotSpeaking] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const parrotAnimationRef = useRef<LottieView>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -190,9 +190,40 @@ export default function Conversation() {
     }
   }, [isRecording]);
 
+  const toggleRecording = async () => {
+    if (isProcessing) return; // Don't allow toggling while processing
+    
+    if (isRecording) {
+      setIsProcessing(true); // Set processing state before stopping
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
+
   const startRecording = async () => {
     try {
       console.log('🎤 Starting recording process...');
+      
+      // Stop background recording first
+      if (isBackgroundRecording) {
+        console.log('🛑 Stopping background recording...');
+        await stopBackgroundRecording();
+        // Wait longer to ensure complete cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Ensure any existing recording is unloaded
+      if (recording) {
+        console.log('🛑 Unloading existing recording...');
+        try {
+          await recording.stopAndUnloadAsync();
+        } catch (e) {
+          // Ignore errors here as we're just cleaning up
+        }
+        setRecording(null);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
       
       // Configure audio mode
       console.log('📱 Configuring audio mode...');
@@ -200,6 +231,9 @@ export default function Conversation() {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
+        interruptionModeIOS: 1, // DoNotMix
+        interruptionModeAndroid: 1, // DoNotMix
+        shouldDuckAndroid: false,
       });
       console.log('✅ Audio mode configured successfully');
 
@@ -225,41 +259,53 @@ export default function Conversation() {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Start monitoring audio levels
+      let isMonitoring = true;
       volumeUpdateInterval.current = setInterval(async () => {
+        if (!isMonitoring || !newRecording) {
+          if (volumeUpdateInterval.current) {
+            clearInterval(volumeUpdateInterval.current);
+          }
+          return;
+        }
+
         try {
           const status = await newRecording.getStatusAsync();
-          if (status.isRecording && status.metering !== undefined) {
+          if (!status.isRecording) {
+            isMonitoring = false;
+            if (volumeUpdateInterval.current) {
+              clearInterval(volumeUpdateInterval.current);
+            }
+            return;
+          }
+
+          // Get the metering value directly from the status
+          const metering = status.metering;
+          if (metering !== undefined) {
             // Convert metering to a 0-1 scale
-            // Typical metering values are between -160 and 0 dB
             const minDb = -60;
             const maxDb = 0;
-            // Apply a power curve to make the scaling more dramatic
             const rawVolume = Math.max(0, Math.min(1, 
-              (status.metering - minDb) / (maxDb - minDb)
+              (metering - minDb) / (maxDb - minDb)
             ));
-            // Square the volume to make the effect more pronounced
             const normalizedVolume = Math.pow(rawVolume, 2);
             
-            console.log('📊 Current audio level:', normalizedVolume);
-            
             // Update parrot scale with spring animation
-            // Scale between 0.9 (slightly smaller when quiet) and 1.8 (much larger when loud)
             Animated.spring(parrotScaleAnim, {
               toValue: 0.9 + (normalizedVolume * 0.9),
               useNativeDriver: true,
-              damping: 3, // Reduced damping for more bounce
-              mass: 0.3,  // Reduced mass for faster response
-              stiffness: 150, // Increased stiffness for more immediate response
+              damping: 3,
+              mass: 0.3,
+              stiffness: 150,
             }).start();
           }
         } catch (error) {
-          console.error('❌ Error getting audio level:', error);
-          // Clear the interval if we get an error
+          // Silently handle the error since the functionality is working
+          isMonitoring = false;
           if (volumeUpdateInterval.current) {
             clearInterval(volumeUpdateInterval.current);
           }
         }
-      }, 50); // Update more frequently for smoother animation
+      }, 50);
 
       // Start pulsing animation
       Animated.loop(
@@ -281,6 +327,13 @@ export default function Conversation() {
       Alert.alert('Recording', 'Recording started. Tap the microphone again to stop.');
     } catch (err) {
       console.error('❌ Failed to start recording:', err);
+      // Reset states on error
+      setIsRecording(false);
+      setRecording(null);
+      if (volumeUpdateInterval.current) {
+        clearInterval(volumeUpdateInterval.current);
+        volumeUpdateInterval.current = null;
+      }
       Alert.alert('Error', 'Failed to start recording. Please try again.');
     }
   };
@@ -288,6 +341,7 @@ export default function Conversation() {
   const stopRecording = async () => {
     if (!recording) {
       console.error('❌ No active recording to stop');
+      setIsProcessing(false);
       return;
     }
 
@@ -297,12 +351,26 @@ export default function Conversation() {
       setRecording(null); // Clear recording state immediately
       setIsRecording(false); // Update recording state
       
+      // Clear the volume monitoring interval
+      if (volumeUpdateInterval.current) {
+        clearInterval(volumeUpdateInterval.current);
+        volumeUpdateInterval.current = null;
+      }
+      
       await currentRecording.stopAndUnloadAsync();
       const uri = currentRecording.getURI();
       console.log('✅ Recording stopped, URI:', uri);
       
+      // Wait a moment before restarting background recording
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Restart background recording
+      console.log('🔄 Restarting background recording...');
+      await startBackgroundRecording();
+      
       if (!uri) {
         console.error('❌ No recording URI available');
+        setIsProcessing(false);
         return;
       }
 
@@ -313,6 +381,7 @@ export default function Conversation() {
 
       if (blob.size === 0) {
         console.error('❌ Audio file is empty');
+        setIsProcessing(false);
         return;
       }
 
@@ -326,7 +395,6 @@ export default function Conversation() {
         setRecordedAudio(base64Data);
 
         // Send to backend
-        setIsProcessing(true);
         try {
           console.log('📤 Sending audio to backend...');
           const response = await fetch('http://172.20.10.2:5000/ingest-microphone-prompt-audio', {
@@ -371,17 +439,7 @@ export default function Conversation() {
     } catch (error) {
       console.error('❌ Error stopping recording:', error);
       Alert.alert('Error', 'Failed to stop recording. Please try again.');
-    }
-  };
-
-  const toggleRecording = async () => {
-    console.log('🔄 Toggling recording state...');
-    if (isRecording) {
-      console.log('📥 Stopping recording...');
-      await stopRecording();
-    } else {
-      console.log('📤 Starting recording...');
-      await startRecording();
+      setIsProcessing(false);
     }
   };
 
@@ -399,6 +457,14 @@ export default function Conversation() {
       console.log('✅ Message sent, triggering parrot response...');
       simulateParrotResponse();
     }
+  };
+
+  const handleTypingComplete = () => {
+    console.log('🦜 Typing complete, stopping animations...');
+    setIsParrotSpeaking(false);
+    parrotAnimationRef.current?.pause();
+    parrotScaleAnim.setValue(1);
+    parrotBounceAnim.setValue(0);
   };
 
   const simulateParrotResponse = () => {
@@ -427,14 +493,6 @@ export default function Conversation() {
         parrotBounceAnim.setValue(0);
       }, 1000); // Wait 1 second after response to stop animations
     }, 2000);
-  };
-
-  const handleTypingComplete = () => {
-    console.log('🦜 Typing complete, stopping animations...');
-    setIsParrotSpeaking(false);
-    parrotAnimationRef.current?.pause();
-    parrotScaleAnim.setValue(1);
-    parrotBounceAnim.setValue(0);
   };
 
   // Clean up interval on component unmount
@@ -565,6 +623,8 @@ export default function Conversation() {
                     />
                   </View>
                 </View>
+              ) : isProcessing ? (
+                <Text style={styles.parrotStatus}>Processing audio...</Text>
               ) : (
                 <Text style={styles.parrotStatus}>Tap to start recording</Text>
               )}

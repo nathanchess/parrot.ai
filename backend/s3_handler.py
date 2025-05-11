@@ -28,6 +28,7 @@ class S3Handler:
         logger.info(f'📦 Target S3 Bucket: {self.bucket_name}')
 
     def upload_audio_to_s3(self, file_obj, filename):
+
         try:
             logger.info(f'📤 Uploading file {filename} to S3 bucket {self.bucket_name}')
             s3_key = f'audio/{filename}'
@@ -84,3 +85,33 @@ class S3Handler:
             logger.error(f"Error transcribing audio: {e}")
             return None
             
+    def upload_json_to_s3(self, file_obj, filename, bucket_name=''):
+
+        if not bucket_name:
+            bucket_name = self.bucket_name
+
+        try:
+            logger.info(f'📤 Uploading file {filename} to S3 bucket {bucket_name}')
+            s3_key = f'{filename}'
+
+            self.s3_client.upload_fileobj(
+                file_obj,
+                bucket_name,
+                s3_key,
+                ExtraArgs={
+                    'ContentType': 'application/json'
+                }
+            )
+
+            s3_uri = f"s3://{bucket_name}/{s3_key}"
+            https_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_key}"
+
+            logger.info(f'✅ File uploaded successfully. S3 URI: {s3_uri}')
+            return {
+                's3_uri': s3_uri,
+                'https_url': https_url
+            }
+            
+        except Exception as e:
+            logger.error(f"Error uploading JSON to S3: {e}")
+            return None

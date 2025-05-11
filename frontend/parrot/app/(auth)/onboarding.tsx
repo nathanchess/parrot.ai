@@ -13,6 +13,7 @@ import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import GradientText from "../components/GradientText";
+import { useBackgroundRecording } from "../context/BackgroundRecordingContext";
 
 const { width } = Dimensions.get("window");
 
@@ -154,6 +155,7 @@ const FeatureModal = ({ visible, onClose, title, description, icon, benefits }: 
 const CompletionScreen = ({ onContinue }: { onContinue: () => void }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const { startBackgroundRecording } = useBackgroundRecording();
 
   const features = {
     recording: {
@@ -192,6 +194,10 @@ const CompletionScreen = ({ onContinue }: { onContinue: () => void }) => {
   };
 
   useEffect(() => {
+    // Start background recording when completion screen appears
+    startBackgroundRecording();
+
+    // Start pulse animation
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {

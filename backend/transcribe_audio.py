@@ -38,8 +38,7 @@ def transcribe_audio(s3_url):
             status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
             if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
                 break
-            logger.info('⏳ Waiting for transcription to complete...')
-            time.sleep(5)
+            time.sleep(1)
 
         if status['TranscriptionJob']['TranscriptionJobStatus'] == 'COMPLETED':
             # Get the transcription text from the transcript URI
