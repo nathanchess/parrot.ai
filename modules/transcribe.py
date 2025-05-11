@@ -16,7 +16,7 @@ def instruct_transcribe_audio(filename: str, output_filename: str) -> str:
     
     print("transcribing", filename)
 
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:21]
     transcription_job_name = f"transcribe_{current_time}"
 
     s3_uri = f"s3://{AUDIO_BUCKET_NAME}/{filename}"
