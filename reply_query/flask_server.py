@@ -2,7 +2,7 @@ import boto3
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
+import datetime
 import sys
 import os
 
@@ -38,7 +38,8 @@ def bedrock_query() -> dict:
             "Also note that you are parrot.ai a tool that helps users remember information that was recorded."
         )
 
-        formatted_matches = ' | '.join(' '.join(tup) for tup in matches)
+        formatted_matches = ' | '.join(' '.join(str(item) if not isinstance(item, datetime) else item.strftime('%Y-%m-%d %H:%M:%S') for item in tup) for tup in matches)
+
         
         context = "Initial Query: " + string_query + "| Matches: " + formatted_matches + "| Context: " + query_text
         
