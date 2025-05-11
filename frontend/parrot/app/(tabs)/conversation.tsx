@@ -24,7 +24,7 @@ import { useBackgroundRecording } from '../context/BackgroundRecordingContext';
 const { width } = Dimensions.get("window");
 
 // Add backend configuration
-const BACKEND_URL = 'http://172.20.10.2:5000';
+const BACKEND_URL = 'http://52.27.31.99:8000/bedrock';
 
 type Message = {
   id: string;
@@ -478,7 +478,7 @@ export default function Conversation() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ query: prompt }),
       });
       
       const data = await response.json();

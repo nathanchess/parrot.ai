@@ -57,7 +57,7 @@ def ingest_audio():
         try:
             # Upload to S3
             file_name_timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"microphone_prompt_audio_{file_name_timestamp}.wav"
+            filename = f"audio/microphone_prompt_audio_{file_name_timestamp}.wav"
             
             # Open the file in binary read mode
             with open(temp_file_path, 'rb') as file_obj:

@@ -1,2 +1,28 @@
 venv
 .env
+backend/.env
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log 
+
+*.env
+
+# Environment variables
+.env
+
+# Node modules
+node_modules/
+
+# Frontend
+frontend/parrot/app/config/auth.ts
