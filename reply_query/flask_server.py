@@ -40,7 +40,7 @@ def bedrock_query() -> dict:
 
         formatted_matches = ' | '.join(' '.join(tup) for tup in matches)
         
-        context = "Initial Query: " + string_query + "| Matches: " + formatted_matches + "| Context: "
+        context = "Initial Query: " + string_query + "| Matches: " + formatted_matches + "| Context: " + query_text
         
         payload = {
             "modelId": "anthropic.claude-3-5-haiku-20241022-v1:0",
@@ -68,7 +68,10 @@ def bedrock_query() -> dict:
             inferenceConfig=payload['inferenceConfig']
         )
 
-        return jsonify(response['output']['message']['content'][0]['text'])
+        return jsonify({
+            'matches': formatted_matches,
+            'response': response['output']['message']['content'][0]['text']
+            })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
