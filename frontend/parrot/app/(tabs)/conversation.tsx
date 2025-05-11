@@ -361,11 +361,8 @@ export default function Conversation() {
       const uri = currentRecording.getURI();
       console.log('✅ Recording stopped, URI:', uri);
       
-      // Wait a moment before restarting background recording
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Restart background recording
-      console.log('🔄 Restarting background recording...');
+      // Start background recording immediately after stopping the main recording
+      console.log('🔄 Starting background recording...');
       await startBackgroundRecording();
       
       if (!uri) {

@@ -37,26 +37,26 @@ export function BackgroundRecordingProvider({ children }: { children: React.Reac
   };
 
   const startBackgroundRecording = async () => {
-    try {
-      if (isBackgroundRecording) {
-        console.log('🎙️ Background recording already active');
-        return;
-      }
+    if (isBackgroundRecording) {
+      console.log('🎙️ Background recording already in progress');
+      return;
+    }
 
+    try {
       console.log('🎙️ Starting background recording process...');
       
-      // Configure audio mode
+      // Configure audio mode for background recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        interruptionModeIOS: 1, // DoNotMix
-        interruptionModeAndroid: 1, // DoNotMix
+        interruptionModeIOS: 1,
+        interruptionModeAndroid: 1,
         shouldDuckAndroid: false,
       });
 
-      // Create temporary recording for noise detection
-      const { recording: tempRecording } = await Audio.Recording.createAsync({
+      // Create and prepare recording
+      const { recording: newRecording } = await Audio.Recording.createAsync({
         ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
         android: {
           ...Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
@@ -68,194 +68,127 @@ export function BackgroundRecordingProvider({ children }: { children: React.Reac
         } as Audio.RecordingOptionsIOS,
       });
 
-      // Start monitoring for noise
-      let noiseStartTime: number | null = null;
-      monitoringIntervalRef.current = setInterval(async () => {
-        const isNoisy = await checkAudioLevel(tempRecording);
-        
-        if (isNoisy) {
-          if (!noiseStartTime) {
-            noiseStartTime = Date.now();
-          } else if (Date.now() - noiseStartTime >= MIN_NOISE_DURATION) {
-            // Clear monitoring interval
-            if (monitoringIntervalRef.current) {
-              clearInterval(monitoringIntervalRef.current);
-            }
-            
-            // Stop temporary recording
-            await tempRecording.stopAndUnloadAsync();
-            
-            // Start actual recording
-            console.log('🔊 Noise detected, starting recording...');
-            const { recording: newRecording } = await Audio.Recording.createAsync({
-              ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
-              android: {
-                ...Audio.RecordingOptionsPresets.HIGH_QUALITY.android,
-                meteringEnabled: true,
-              } as Audio.RecordingOptionsAndroid,
-              ios: {
-                ...Audio.RecordingOptionsPresets.HIGH_QUALITY.ios,
-                meteringEnabled: true,
-              } as Audio.RecordingOptionsIOS,
-            });
+      recording.current = newRecording;
+      setIsBackgroundRecording(true);
+      console.log('✅ Background recording started');
 
-            recording.current = newRecording;
-            setIsBackgroundRecording(true);
-            console.log('✅ Background recording started');
-            startMonitoringAudioLevels();
+      // Start monitoring audio levels
+      let silenceStartTime: number | null = null;
+      let isMonitoring = true;
+
+      const monitorInterval = setInterval(async () => {
+        if (!isMonitoring || !newRecording) {
+          clearInterval(monitorInterval);
+          return;
+        }
+
+        try {
+          const status = await newRecording.getStatusAsync();
+          if (!status.isRecording) {
+            isMonitoring = false;
+            clearInterval(monitorInterval);
+            return;
           }
-        } else {
-          noiseStartTime = null;
+
+          const metering = status.metering;
+          if (metering !== undefined) {
+            console.log('🔊 Current noise level:', metering, 'dB');
+            
+            if (metering > NOISE_THRESHOLD) {
+              if (silenceStartTime) {
+                console.log('🔊 Noise detected, resetting silence timer');
+                silenceStartTime = null;
+              }
+            } else {
+              if (!silenceStartTime) {
+                console.log('🤫 Silence detected, starting silence timer...');
+                silenceStartTime = Date.now();
+              } else if (Date.now() - silenceStartTime >= SILENCE_DURATION) {
+                console.log('🤫 Silence duration reached, stopping recording...');
+                isMonitoring = false;
+                clearInterval(monitorInterval);
+                await stopBackgroundRecording();
+                
+                // Immediately restart monitoring after stopping
+                console.log('🔄 Restarting background monitoring...');
+                startBackgroundRecording();
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error checking audio levels:', error);
+          isMonitoring = false;
+          clearInterval(monitorInterval);
         }
       }, 100);
 
-      // Stop monitoring after 10 seconds if no noise detected
-      /*
-
-
-      setTimeout(async () => {
-        if (monitoringIntervalRef.current) {
-          clearInterval(monitoringIntervalRef.current);
-          await tempRecording.stopAndUnloadAsync();
-          console.log('⏱️ No significant noise detected, stopping monitoring');
-        }
-      }, 5000);
-      */
-
+      // Store the interval ID for cleanup
+      monitoringIntervalRef.current = monitorInterval;
     } catch (error) {
-      console.error('❌ Failed to start background recording:', error);
+      console.error('❌ Error starting background recording:', error);
       setIsBackgroundRecording(false);
       recording.current = null;
     }
   };
 
   const stopBackgroundRecording = async () => {
+    if (!recording.current) {
+      console.log('🎙️ No active background recording to stop');
+      return;
+    }
+
     try {
-      if (!recording.current) {
-        console.log('🎙️ No active background recording to stop');
-        return;
-      }
-
       console.log('🎙️ Stopping background recording...');
-      
-      // Clear any existing silence timer
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-
-      // Ensure recording is stopped
-      try {
-        await recording.current.stopAndUnloadAsync();
-      } catch (error) {
-        console.error('❌ Error stopping recording:', error);
-      }
-
-      const uri = recording.current.getURI();
+      const currentRecording = recording.current;
       recording.current = null;
       setIsBackgroundRecording(false);
+
+      if (monitoringIntervalRef.current) {
+        clearInterval(monitoringIntervalRef.current);
+        monitoringIntervalRef.current = null;
+      }
+
+      await currentRecording.stopAndUnloadAsync();
+      const uri = currentRecording.getURI();
       console.log('✅ Background recording stopped');
 
       if (uri) {
-        await sendAudioToBackend(uri);
+        // Read the audio file
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        if (blob.size > 0) {
+          // Convert to base64
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = async () => {
+            const base64Audio = reader.result as string;
+            const base64Data = base64Audio.split(',')[1];
+            
+            // Send to backend
+            try {
+              console.log('📤 Sending audio to backend...');
+              const response = await fetch('http://172.20.10.2:5000/send-transcription-to-s3', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ audio: base64Data }),
+              });
+              
+              if (response.ok) {
+                console.log('✅ Audio sent to backend successfully');
+              } else {
+                console.error('❌ Failed to send audio to backend');
+              }
+            } catch (error) {
+              console.error('❌ Error sending audio to backend:', error);
+            }
+          };
+        }
       }
     } catch (error) {
       console.error('❌ Error stopping background recording:', error);
-      setIsBackgroundRecording(false);
-      recording.current = null;
-    }
-  };
-
-  const startMonitoringAudioLevels = () => {
-    const checkAudioLevel = async () => {
-      if (!recording.current) return;
-
-      try {
-        const status = await recording.current.getStatusAsync();
-        if (!status.isRecording) return;
-
-        const metering = status.metering;
-        if (metering !== undefined) {
-          //console.log('🔊 Current noise level:', metering, 'dB');
-          if (metering > NOISE_THRESHOLD) {
-            // Reset silence timer if noise is detected
-            if (silenceTimerRef.current) {
-              clearTimeout(silenceTimerRef.current);
-              silenceTimerRef.current = null;
-              console.log('🔊 Noise detected, resetting silence timer');
-            }
-          } else {
-            // Start silence timer if not already started
-            if (!silenceTimerRef.current) {
-              console.log('🤫 Silence detected, starting silence timer...');
-              silenceTimerRef.current = setTimeout(async () => {
-                console.log('🤫 Silence duration reached, stopping recording...');
-                await stopBackgroundRecording();
-                // Ensure timer is cleared after stopping
-                silenceTimerRef.current = null;
-              }, SILENCE_DURATION);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error checking audio level:', error);
-        // If there's an error checking levels, stop recording
-        await stopBackgroundRecording();
-      }
-    };
-
-    // Check audio levels more frequently
-    const interval = setInterval(checkAudioLevel, 50);
-
-    // Cleanup interval when component unmounts
-    return () => {
-      clearInterval(interval);
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-    };
-  };
-
-  const sendAudioToBackend = async (uri: string) => {
-    try {
-      console.log('📤 Sending audio to backend...');
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      if (blob.size === 0) {
-        console.warn('⚠️ Audio file is empty');
-        return;
-      }
-
-      // Convert to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64Audio = reader.result as string;
-        const base64Data = base64Audio.split(',')[1];
-
-        try {
-          const response = await fetch('http://172.20.10.2:5000/send-transcription-to-s3', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ audio: base64Data }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const data = await response.json();
-          console.log('✅ Audio sent to backend successfully');
-        } catch (error) {
-          console.error('❌ Error sending audio to backend:', error);
-        }
-      };
-    } catch (error) {
-      console.error('❌ Error processing audio:', error);
     }
   };
 
