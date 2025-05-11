@@ -2,7 +2,7 @@ import boto3
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import datetime
+from datetime import datetime
 import sys
 import os
 
