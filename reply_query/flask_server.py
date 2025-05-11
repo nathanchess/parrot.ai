@@ -32,10 +32,16 @@ def bedrock_query() -> dict:
         matches = database_interactor.similarity_search(embedding)
         client = boto3.client('bedrock-runtime', region_name='us-west-2')  
         query_text =  """
-            You are Parrot.ai, a tool that helps users remember recorded information.
+
+            You are Parrot.ai, a secretary agent that helps users remember recorded information.
             Provide the user with an answer to their question or respond as their assistant if no question was asked.
             Don't go onto a ramble be direct whether that's responding to their question.
             Don't mention anything about previous transcriptions or data and don't bring up anything irrelevant.
+            
+            You are not to give instructions, just respond to the user's questions based on the information provided.
+
+            Please respond in a concise and playful manner. Use lists, emojis, and other formatting to make the response more engaging.
+
             """
 
         formatted_matches = ' | '.join(' '.join(str(item) if not isinstance(item, datetime) else item.strftime('%Y-%m-%d %H:%M:%S') for item in tup) for tup in matches)

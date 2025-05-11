@@ -23,18 +23,35 @@ export default function SignUp() {
   const { signInWithApple } = useAppleAuth();
 
   const handleSignUp = () => {
-    // Temporarily bypass authentication
+    // TODO: Implement sign up logic
+    console.log("Sign up with:", { email, password, confirmPassword });
     router.replace("/(auth)/onboarding");
   };
 
   const handleGoogleSignUp = async () => {
-    // Temporarily bypass Google authentication
-    router.replace("/(auth)/onboarding");
+    try {
+      const result = await signInWithGoogle();
+      if (result) {
+        // Handle successful Google sign-in
+        console.log("Google sign-in successful");
+        router.replace("/(auth)/onboarding");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to sign in with Google");
+    }
   };
 
   const handleAppleSignUp = async () => {
-    // Temporarily bypass Apple authentication
-    router.replace("/(auth)/onboarding");
+    try {
+      const result = await signInWithApple();
+      if (result) {
+        // Handle successful Apple sign-in
+        console.log("Apple sign-in successful");
+        router.replace("/(auth)/onboarding");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to sign in with Apple");
+    }
   };
 
   return (
