@@ -10,7 +10,7 @@ import modules.s3_interactor as s3
 import time
 
 def _process_file_contents(file_contents: dict) -> None:
-    transcript = file_contents["transcript"]
+    transcript = s3.get_transcript_from_file_contents(file_contents)
     sentences = ts.text_segmentation(transcript)
 
     upload_contents = []

@@ -58,4 +58,13 @@ def read_pop_file(filename: str) -> str:
     except ClientError as e:
         print(f"Error occurred: {e}")
         return None 
-
+    
+def get_transcript_from_file_contents(json_data: str) -> str:
+    """returns the transcript from file contents"""
+    try:
+        transcript = json_data["transcript"]
+        return transcript
+    except:
+        print("error finding transcript in file")
+        return None
+    
