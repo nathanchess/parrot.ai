@@ -3,9 +3,18 @@ import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+import sys
+import os
+
+# Add the parent directory of 'reply_query' to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from modules import text_embedding, database_interactor
+
 app = Flask(__name__)
 
 CORS(app)
+
 
 @app.route("/", methods=["GET"])
 def helloWorld():
@@ -17,11 +26,15 @@ def helloWorld():
 @app.route("/bedrock", methods=["POST"])
 def bedrock_query() -> dict:
     try:
+        print("pass")
         data = request.json
-        string_query = data.get('query')
-        matches = data.get('matches', [])
+        string_query = data.get('query') # query needs to get transformed into a embedded text 
+        embedding = text_embedding.embed_text(string_query) # transform for embed
+        print("pass2")
+        matches = database_interactor.similarity_search(embedding)
+        # matches = data.get('matches')
+        print("pass match specifciation")
         client = boto3.client('bedrock-runtime', region_name='us-west-2')  
-        
         query_text = (
             "Given the information of the initial query question that was asked and also the matching information "
             "that was found with the text and that timeframe, provide the user with an answer to their question "
