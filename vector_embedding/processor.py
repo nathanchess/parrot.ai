@@ -15,6 +15,10 @@ def _process_file_contents(file_contents: dict) -> None:
 
     upload_contents = []
     for sentence in sentences:
+        print(sentence)
+        if not sentence.strip():
+            continue
+    
         embedded_text = te.embed_text(sentence)
         upload_contents.append((sentence, embedded_text, "test_user", "speaker"))
 
