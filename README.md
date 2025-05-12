@@ -1,4 +1,4 @@
-# parrot.ai
+# Parrot.AI
 <div align="center">
 <img src=https://github.com/user-attachments/assets/f97774ea-5c09-47b2-9e0b-8178b3812f6b>
 
