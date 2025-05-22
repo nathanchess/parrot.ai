@@ -2,6 +2,10 @@ import boto3
 
 def text_segmentation(full_text: str) -> list[str]:
     """segments text into a list of strings"""
+
+    if not full_text.strip():
+        return []
+
     comprehend = boto3.client('comprehend')
 
     response = comprehend.batch_detect_syntax(
