@@ -32,12 +32,11 @@ export default function SignUp() {
     try {
       const result = await signInWithGoogle();
       if (result) {
-        // Handle successful Google sign-in
         console.log("Google sign-in successful");
         router.replace("/(auth)/onboarding");
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to sign in with Google");
+      console.log("Google sign-in failed:", error);
     }
   };
 
@@ -45,12 +44,11 @@ export default function SignUp() {
     try {
       const result = await signInWithApple();
       if (result) {
-        // Handle successful Apple sign-in
         console.log("Apple sign-in successful");
         router.replace("/(auth)/onboarding");
       }
     } catch (error) {
-      Alert.alert("Error", "Failed to sign in with Apple");
+      console.log("Apple sign-in failed:", error);
     }
   };
 

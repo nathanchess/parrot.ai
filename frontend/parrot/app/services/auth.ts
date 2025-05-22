@@ -19,13 +19,13 @@ export const useGoogleAuth = () => {
       const result = await promptAsync();
       if (result?.type === 'success') {
         const { authentication } = result;
-        // Here you would typically send the token to your backend
-        console.log('Google Sign In Success:', authentication);
+        console.log('Google Sign In Success');
         return authentication;
       }
+      return null;
     } catch (error) {
-      console.error('Google Sign In Error:', error);
-      throw error;
+      console.log('Google Sign In Error:', error);
+      return null;
     }
   };
 
@@ -42,12 +42,11 @@ export const useAppleAuth = () => {
         ],
       });
       
-      // Here you would typically send the credential to your backend
-      console.log('Apple Sign In Success:', credential);
+      console.log('Apple Sign In Success');
       return credential;
     } catch (error) {
-      console.error('Apple Sign In Error:', error);
-      throw error;
+      console.log('Apple Sign In Error:', error);
+      return null;
     }
   };
 

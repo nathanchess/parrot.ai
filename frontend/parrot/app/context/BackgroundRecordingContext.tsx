@@ -168,7 +168,7 @@ export function BackgroundRecordingProvider({ children }: { children: React.Reac
             // Send to backend
             try {
               console.log('📤 Sending audio to backend...');
-              const response = await fetch('http://172.20.10.2:5000/send-transcription-to-s3', {
+              const response = await fetch('http://172.20.10.2:5000/send-audio-to-s3', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

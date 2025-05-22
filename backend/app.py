@@ -93,8 +93,8 @@ def ingest_audio():
         logger.error(f'❌ Error processing request: {str(e)}')
         return jsonify({'error': str(e)}), 500
 
-@app.route('/send-transcription-to-s3', methods=['POST'])
-def send_transcription_to_s3():
+@app.route('/send-audio-to-s3', methods=['POST'])
+def send_audio_to_s3():
 
     try:
         logger.info('📥 Received audio ingestion request')

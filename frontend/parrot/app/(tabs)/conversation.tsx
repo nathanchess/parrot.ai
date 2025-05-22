@@ -16,15 +16,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import LottieView from "lottie-react-native";
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { useBackgroundRecording } from '../context/BackgroundRecordingContext';
+import Constants from 'expo-constants';
 
-const { width } = Dimensions.get("window");
-
-// Add backend configuration
-const BACKEND_URL = 'http://52.27.31.99:8000/bedrock';
+const ELEVENLABS_API_KEY = Constants.expoConfig?.extra?.ELEVENLABS_API_KEY;
 
 type Message = {
   id: string;
@@ -88,7 +86,7 @@ export default function Conversation() {
     (async () => {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission required', 'Please grant microphone access to use voice input.');
+        console.log('Microphone permission not granted');
       }
     })();
   }, []);
@@ -209,7 +207,6 @@ export default function Conversation() {
       if (isBackgroundRecording) {
         console.log('🛑 Stopping background recording...');
         await stopBackgroundRecording();
-        // Wait longer to ensure complete cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
@@ -219,7 +216,7 @@ export default function Conversation() {
         try {
           await recording.stopAndUnloadAsync();
         } catch (e) {
-          // Ignore errors here as we're just cleaning up
+          console.log('Error unloading recording:', e);
         }
         setRecording(null);
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -231,8 +228,8 @@ export default function Conversation() {
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
-        interruptionModeIOS: 1, // DoNotMix
-        interruptionModeAndroid: 1, // DoNotMix
+        interruptionModeIOS: 1,
+        interruptionModeAndroid: 1,
         shouldDuckAndroid: false,
       });
       console.log('✅ Audio mode configured successfully');
@@ -326,21 +323,19 @@ export default function Conversation() {
 
       Alert.alert('Recording', 'Recording started. Tap the microphone again to stop.');
     } catch (err) {
-      console.error('❌ Failed to start recording:', err);
-      // Reset states on error
+      console.log('Failed to start recording:', err);
       setIsRecording(false);
       setRecording(null);
       if (volumeUpdateInterval.current) {
         clearInterval(volumeUpdateInterval.current);
         volumeUpdateInterval.current = null;
       }
-      Alert.alert('Error', 'Failed to start recording. Please try again.');
     }
   };
 
   const stopRecording = async () => {
     if (!recording) {
-      console.error('❌ No active recording to stop');
+      console.log('No active recording to stop');
       setIsProcessing(false);
       return;
     }
@@ -348,10 +343,9 @@ export default function Conversation() {
     try {
       console.log('🎙️ Stopping recording...');
       const currentRecording = recording;
-      setRecording(null); // Clear recording state immediately
-      setIsRecording(false); // Update recording state
+      setRecording(null);
+      setIsRecording(false);
       
-      // Clear the volume monitoring interval
       if (volumeUpdateInterval.current) {
         clearInterval(volumeUpdateInterval.current);
         volumeUpdateInterval.current = null;
@@ -361,28 +355,25 @@ export default function Conversation() {
       const uri = currentRecording.getURI();
       console.log('✅ Recording stopped, URI:', uri);
       
-      // Start background recording immediately after stopping the main recording
       console.log('🔄 Starting background recording...');
       await startBackgroundRecording();
       
       if (!uri) {
-        console.error('❌ No recording URI available');
+        console.log('No recording URI available');
         setIsProcessing(false);
         return;
       }
 
-      // Read the audio file
       const response = await fetch(uri);
       const blob = await response.blob();
       console.log('✅ Audio file read, size:', blob.size, 'bytes');
 
       if (blob.size === 0) {
-        console.error('❌ Audio file is empty');
+        console.log('Audio file is empty');
         setIsProcessing(false);
         return;
       }
 
-      // Convert to base64
       const reader = new FileReader();
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
@@ -391,7 +382,6 @@ export default function Conversation() {
         console.log('✅ Audio converted to base64, length:', base64Data.length);
         setRecordedAudio(base64Data);
 
-        // Send to backend
         try {
           console.log('📤 Sending audio to backend...');
           const response = await fetch('http://172.20.10.2:5000/ingest-microphone-prompt-audio', {
@@ -407,7 +397,6 @@ export default function Conversation() {
 
           if (data.transcription) {
             console.log('📝 Received transcription:', data.transcription);
-            // Add the transcription as a user message
             const newMessage: Message = {
               id: Date.now().toString(),
               text: data.transcription,
@@ -419,23 +408,20 @@ export default function Conversation() {
             setInputText(data.transcription);
             console.log('✅ Transcription added to chat');
             
-            // Trigger LLM response
             console.log('🦜 Triggering parrot response...');
             await simulateParrotResponse(data.transcription);
           } else {
-            console.error('❌ No transcription in backend response');
+            console.log('No transcription in backend response');
           }
         } catch (error) {
-          console.error('❌ Error sending audio to backend:', error);
-          Alert.alert('Error', 'Failed to process audio. Please try again.');
+          console.log('Error sending audio to backend:', error);
         } finally {
           setIsProcessing(false);
           console.log('✅ Processing complete');
         }
       };
     } catch (error) {
-      console.error('❌ Error stopping recording:', error);
-      Alert.alert('Error', 'Failed to stop recording. Please try again.');
+      console.log('Error stopping recording:', error);
       setIsProcessing(false);
     }
   };
@@ -470,6 +456,9 @@ export default function Conversation() {
     parrotAnimationRef.current?.play();
     
     try {
+      /*
+
+
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         headers: {
@@ -477,9 +466,10 @@ export default function Conversation() {
         },
         body: JSON.stringify({ query: prompt }),
       });
-      
-      const data = await response.json();
-      const message = data.response || "I'm analyzing your conversation...";
+      */
+
+      //const data = await response.json();
+      const message = "Hi my name is Parrot.AI";
 
       const responseMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -488,14 +478,130 @@ export default function Conversation() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, responseMessage]);
-      
-      setTimeout(() => {
+
+      // Convert text to speech using ElevenLabs API
+      try {
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM/stream`,
+          {
+            method: 'POST',
+            headers: {
+              'Accept': 'audio/mpeg',
+              'Content-Type': 'application/json',
+              'xi-api-key': ELEVENLABS_API_KEY || '',
+            },
+            body: JSON.stringify({
+              text: message,
+              model_id: "eleven_monolingual_v1",
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.5
+              }
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to generate speech');
+        }
+
+        // Get the audio data as a blob
+        const audioBlob = await response.blob();
+        
+        // Create a temporary file path
+        const fileUri = FileSystem.documentDirectory + 'temp_audio.mp3';
+        
+        // Convert blob to base64
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve, reject) => {
+          reader.onload = () => {
+            const base64 = reader.result?.toString().split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(audioBlob);
+        const base64Data = await base64Promise;
+
+        // Write the audio data to the file
+        await FileSystem.writeAsStringAsync(fileUri, base64Data as string, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        console.log('🔊 Audio file written to:', fileUri);
+
+        // Configure audio mode for playback
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+          allowsRecordingIOS: false,
+          interruptionModeIOS: 1,
+          interruptionModeAndroid: 1,
+        });
+
+        // Create and play the sound
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: fileUri },
+          { 
+            shouldPlay: true,
+            volume: 1.0,
+            isMuted: false,
+            isLooping: false,
+            progressUpdateIntervalMillis: 100,
+          }
+        );
+
+        console.log('🎵 Starting audio playback...');
+
+        // Play the audio
+        try {
+          // Ensure volume is at maximum
+          await sound.setVolumeAsync(1.0);
+          await sound.setIsMutedAsync(false);
+          
+          // Start playback
+          await sound.playAsync();
+          console.log('✅ Audio playback started');
+
+          // Double-check volume after a short delay
+          setTimeout(async () => {
+            const status = await sound.getStatusAsync();
+            console.log('Playback status check:', status);
+            if (status.isLoaded) {
+              await sound.setVolumeAsync(1.0);
+            }
+          }, 100);
+
+        } catch (error) {
+          console.error('Error playing audio:', error);
+          setIsParrotSpeaking(false);
+          parrotAnimationRef.current?.pause();
+          return;
+        }
+
+        // Clean up when done
+        sound.setOnPlaybackStatusUpdate(async (status) => {
+          console.log('Playback status:', status);
+          if (status.isLoaded && status.didJustFinish) {
+            console.log('🎵 Audio playback finished');
+            await sound.unloadAsync();
+            await FileSystem.deleteAsync(fileUri);
+            setIsParrotSpeaking(false);
+            parrotAnimationRef.current?.pause();
+          }
+        });
+      } catch (error) {
+        console.error('Error with text-to-speech:', error);
         setIsParrotSpeaking(false);
         parrotAnimationRef.current?.pause();
-      }, 1000);
+      }
+
     } catch (error) {
-      console.error('❌ Error getting response:', error);
+      console.log('Error getting response:', error);
       setIsParrotSpeaking(false);
+      parrotAnimationRef.current?.pause();
     }
   };
 
